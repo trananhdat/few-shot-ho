@@ -74,11 +74,15 @@ def main(opt):
     engine.hooks['on_start_epoch'] = on_start_epoch
 
     def on_update(state):
+        state['acc_train'] = state['output']['acc']
+        state['loss_train'] = state['output']['loss']
         for field, meter in meters['train'].items():
             meter.add(state['output'][field])
     engine.hooks['on_update'] = on_update
 
     def on_end_epoch(hook_state, state):
+        state['acc_val'] = 0
+        state['loss_val'] = 0
         if val_loader is not None:
             if 'best_loss' not in hook_state:
                 hook_state['best_loss'] = np.inf
@@ -86,13 +90,14 @@ def main(opt):
                 hook_state['wait'] = 0
 
         if val_loader is not None:
-            model_utils.evaluate(state['model'],
+            _, state['acc_val'], state['loss_val']  = model_utils.evaluate(state['model'],
                                  val_loader,
                                  meters['val'],
                                  desc="Epoch {:d} valid".format(state['epoch']))
 
         meter_vals = log_utils.extract_meter_values(meters)
         print("Epoch {:02d}: {:s}".format(state['epoch'], log_utils.render_meter_values(meter_vals)))
+
         meter_vals['epoch'] = state['epoch']
         with open(trace_file, 'a') as f:
             json.dump(meter_vals, f)
@@ -120,11 +125,12 @@ def main(opt):
             torch.save(state['model'], os.path.join(opt['log.exp_dir'], 'best_model.pt'))
             if opt['data.cuda']:
                 state['model'].cuda()
+        # return acc_val, loss_val
 
     engine.hooks['on_end_epoch'] = partial(on_end_epoch, { })
 
     start = time.time()
-    engine.train(
+    w, acc_train, loss, acc_val, loss_val = engine.train(
         model = model,
         loader = train_loader,
         optim_method = getattr(optim, opt['train.optim_method']),
@@ -135,3 +141,7 @@ def main(opt):
     end = time.time()
     elapsed = str(timedelta(seconds= end-start))
     print("Total Time: {}".format(elapsed))
+    print("acc_train = {}".format(acc_train))
+    print("loss = {}".format(loss))
+    print("acc_val = {}".format(acc_val))
+    print("loss_val = {}".format(loss_val))
