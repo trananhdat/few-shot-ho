@@ -1,4 +1,5 @@
 from tqdm import tqdm
+from statistics import mean
 
 from protonets.utils import filter_opt
 from protonets.models import get_model
@@ -20,9 +21,16 @@ def evaluate(model, data_loader, meters, desc=None):
     if desc is not None:
         data_loader = tqdm(data_loader, desc=desc)
 
+    list_loss_val = []
+    list_acc_val = []
     for sample in data_loader:
         _, output = model.loss(sample)
+        # print("TAD = ", output)
+        list_loss_val.append(output['loss'])
+        list_acc_val.append(output['acc'])
         for field, meter in meters.items():
             meter.add(output[field])
-
-    return meters
+    
+    
+    # print(mean(list_acc_val))
+    return meters, mean(list_acc_val), mean(list_loss_val)
