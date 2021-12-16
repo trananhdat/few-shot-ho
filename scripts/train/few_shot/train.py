@@ -119,6 +119,8 @@ def update_weights(opt, model, train_loader, val_loader):
     )
     end = time.time()
     elapsed = str(timedelta(seconds= end-start))
+    
+    return w, acc_train, loss, acc_val, loss_val
 
 def main(opt):
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
